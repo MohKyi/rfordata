@@ -1,0 +1,604 @@
+---
+title: "data_transformation"
+author: "Moh_Kyi"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+Prerequisites
+
+```{r}
+library(nycflights13)
+library(tidyverse)
+```
+
+nycflights13
+
+```{r}
+
+flights
+View (flights)
+```
+
+The tibble. You'll learn what makes them different from regular data frames.
+
+You might also have noticed the row of three (or four) letter abbreviations under the column names. These describe the type of each variable:
+
+int stands for integers. dbl stands for doubles, or real numbers. chr stands for character vectors, or strings. dttm stands for date-times (a date + a time). lgl stands for logical, vectors that contain only TRUE or FALSE. fctr stands for factors, which R uses to represent categorical variables with fixed possible values. date stands for dates
+
+dplyr basics
+
+Pick observations by their values (filter()). Reorder the rows (arrange()). Pick variables by their names (select()). Create new variables with functions of existing variables (mutate()). Collapse many values down to a single summary (summarise()) These can all be used in conjunction with group_by()
+
+Filter rows with filter()
+
+```{r}
+filter(flights, month == 1, day == 1)
+```
+
+```{r}
+jan1 <- filter(flights, month == 1, day == 1)
+
+```
+
+R either prints out the results, or saves them to a variable. If you want to do both, you can wrap the assignment in parentheses
+
+```{r}
+(dec25 <- filter(flights, month == 12, day == 25))
+```
+
+Logical operators
+
+Boolean operators yourself: & is "and", \| is "or", and ! is "not".
+
+![](images/Screenshot%202023-01-08%20at%2020.44.02.png)
+
+```{r}
+filter(flights, month == 11 | month == 12)
+```
+
+```{r}
+nov_dec <- filter(flights, month %in% c(11, 12))
+```
+
+Sometimes you can simplify complicated subsetting by remembering De Morgan's law: `!(x & y)` is the same as `!x | !y`, and `!(x | y)` is the same as `!x & !y`
+
+```{r}
+filter(flights, !(arr_delay > 120 | dep_delay > 120))
+filter(flights, arr_delay <= 120, dep_delay <= 120)
+```
+
+As well as `&` and `|`, R also has `&&` and `||`. Don't use them here! You'll learn when you should use them in [conditional execution](https://r4ds.had.co.nz/functions.html#conditional-execution).
+
+Missing values
+
+One important feature of R that can make comparison tricky are missing values, or `NA`s ("not availables"). `NA` represents an unknown value so missing values are "contagious": almost any operation involving an unknown value will also be unknown.
+
+```{r}
+NA > 5
+
+10 == NA
+
+NA + 10
+
+NA / 2
+
+```
+
+The most confusing result is this one:
+
+```{r}
+NA == NA
+```
+
+It's easiest to understand why this is true with a bit more context:
+
+```{r}
+# Let x be Mary's age. We don't know how old she is.
+x <- NA
+
+# Let y be John's age. We don't know how old he is.
+y <- NA
+
+# Are John and Mary the same age?
+x == y
+
+# We don't know!
+```
+
+If you want to determine if a value is missing, use [`is.na()`](https://rdrr.io/r/base/NA.html):
+
+```{r}
+is.na(x)
+```
+
+[`filter()`](https://dplyr.tidyverse.org/reference/filter.html) only includes rows where the condition is `TRUE`; it excludes both `FALSE` and `NA` values. If you want to preserve missing values, ask for them explicitly
+
+```{r}
+df <- tibble(x = c(1, NA, 3))
+
+filter(df, x > 1)
+
+filter(df, is.na(x) | x > 1)
+
+```
+
+Exercise
+
+```{r}
+#Had an arrival delay of two or more hours
+(more_two <- filter(flights, arr_delay >=120))
+```
+
+Arrange rows with arrange()
+
+[`arrange()`](https://dplyr.tidyverse.org/reference/arrange.html) works similarly to [`filter()`](https://dplyr.tidyverse.org/reference/filter.html) except that instead of selecting rows, it changes their order. It takes a data frame and a set of column names (or more complicated expressions) to order by. If you provide more than one column name, each additional column will be used to break ties in the values of preceding columns:
+
+```{r}
+arrange(flights, year, month, day)
+```
+
+Use [`desc()`](https://dplyr.tidyverse.org/reference/desc.html) to re-order by a column in descending order
+
+```{r}
+arrange(flights, desc(dep_delay))
+```
+
+Missing values are always sorted at the end
+
+```{r}
+df <- tibble(x = c(5, 2, NA))
+arrange(df, x)
+arrange(df, desc(x))
+```
+
+Exercise
+
+```{r}
+#How could you use arrange() to sort all missing values to the start? (Hint: use is.na()).
+
+```
+
+Select columns with select()
+
+```{r}
+# Select columns by name
+select(flights, year, month, day)
+select(flights, year:day)
+select(flights, -(year:day))
+
+```
+
+There are a number of helper functions you can use within [`select()`](https://dplyr.tidyverse.org/reference/select.html):
+
+-   `starts_with("abc")`: matches names that begin with "abc".
+
+-   `ends_with("xyz")`: matches names that end with "xyz".
+
+-   `contains("ijk")`: matches names that contain "ijk".
+
+-   `matches("(.)\\1")`: selects variables that match a regular expression. This one matches any variables that contain repeated characters. You'll learn more about regular expressions in [strings](https://r4ds.had.co.nz/strings.html#strings).
+
+-   `num_range("x", 1:3)`: matches `x1`, `x2` and `x3`.
+
+```{r}
+?select
+```
+
+[`select()`](https://dplyr.tidyverse.org/reference/select.html) can be used to rename variables, but it's rarely useful because it drops all of the variables not explicitly mentioned. Instead, use [`rename()`](https://dplyr.tidyverse.org/reference/rename.html), which is a variant of [`select()`](https://dplyr.tidyverse.org/reference/select.html) that keeps all the variables that aren't explicitly mentioned:
+
+```{r}
+rename (flights, tail_num = tailnum)
+```
+
+Another option is to use [`select()`](https://dplyr.tidyverse.org/reference/select.html) in conjunction with the [`everything()`](https://tidyselect.r-lib.org/reference/everything.html) helper. This is useful if you have a handful of variables you'd like to move to the start of the data frame.
+
+```{r}
+select(flights, time_hour, air_time, everything())
+```
+
+```{r}
+vars <- c("year", "month", "day", "dep_delay", "arr_delay")
+```
+
+```{r}
+select(flights, contains("time"))
+```
+
+Add new variables with mutate()
+
+[`mutate()`](https://dplyr.tidyverse.org/reference/mutate.html) always adds new columns at the end of your dataset so we'll start by creating a narrower dataset so we can see the new variables. Remember that when you're in RStudio, the easiest way to see all the columns is [`View()`](https://rdrr.io/r/utils/View.html)
+
+```{r}
+flights_sml <- select(flights, 
+  year:day, 
+  ends_with("delay"), 
+  distance, 
+  air_time)
+
+mutate(flights_sml,
+  gain = dep_delay - arr_delay,
+  speed = distance / air_time * 60)
+```
+
+If you only want to keep the new variables, use [`transmute()`](https://dplyr.tidyverse.org/reference/mutate.html):
+
+```{r}
+transmute(flights,
+  gain = dep_delay - arr_delay,
+  hours = air_time / 60,
+  gain_per_hour = gain / hours)
+
+```
+
+Modular arithmetic: `%/%` (integer division) and `%%` (remainder), where `x == y * (x %/% y) + (x %% y)`. Modular arithmetic is a handy tool because it allows you to break integers up into pieces. For example, in the flights dataset, you can compute `hour` and `minute` from `dep_time` with:
+
+```{r}
+transmute(flights,
+  dep_time,
+  hour = dep_time %/% 100,
+  minute = dep_time %% 100)
+
+```
+
+Offsets: [`lead()`](https://dplyr.tidyverse.org/reference/lead-lag.html) and `lag()` allow you to refer to leading or lagging values
+
+```{r}
+(x <- 1:10)
+
+lag(x)
+lead(x)
+
+```
+
+Cumulative and rolling aggregates: R provides functions for running sums, products, mins and maxes: [`cumsum()`](https://rdrr.io/r/base/cumsum.html), [`cumprod()`](https://rdrr.io/r/base/cumsum.html), [`cummin()`](https://rdrr.io/r/base/cumsum.html), [`cummax()`](https://rdrr.io/r/base/cumsum.html); and dplyr provides [`cummean()`](https://dplyr.tidyverse.org/reference/cumall.html) for cumulative means.
+
+```{r}
+x
+
+cumsum(x)
+cummean(x)
+```
+
+Logical comparisons, `<`, `<=`, `>`, `>=`, `!=`, and `==`
+
+```{r}
+y <- c(1, 2, 2, NA, 3, 4)
+
+min_rank(y)
+
+min_rank(desc(y))
+
+```
+
+If [`min_rank()`](https://dplyr.tidyverse.org/reference/ranking.html) doesn't do what you need, look at the variants [`row_number()`](https://dplyr.tidyverse.org/reference/ranking.html), [`dense_rank()`](https://dplyr.tidyverse.org/reference/ranking.html), [`percent_rank()`](https://dplyr.tidyverse.org/reference/ranking.html), [`cume_dist()`](https://dplyr.tidyverse.org/reference/ranking.html), [`ntile()`](https://dplyr.tidyverse.org/reference/ranking.html). See their help pages for more details.
+
+```{r}
+row_number(y)
+
+dense_rank(y)
+
+percent_rank(y)
+
+cume_dist(y)
+
+```
+
+Grouped summaries with summarise()
+
+```{r}
+summarise (flights, delay = mean(dep_delay, na.rm = TRUE))
+
+```
+
+when you use the dplyr verbs on a grouped data frame they'll be automatically applied "by group". Together [`group_by()`](https://dplyr.tidyverse.org/reference/group_by.html) and [`summarise()`](https://dplyr.tidyverse.org/reference/summarise.html) provide one of the tools that you'll use most commonly when working with dplyr: grouped summaries
+
+```{r}
+by_day <- group_by(flights, year, month, day)
+
+summarise(by_day, delay = mean(dep_delay, na.rm = TRUE))
+
+```
+
+Combining multiple operations with the pipe
+
+Imagine that we want to explore the relationship between the distance and average delay for each location. Using what you know about dplyr, you might write code like this:
+
+```{r}
+by_dest <- group_by(flights, dest)
+
+delay <- summarise(by_dest,
+  count = n(),
+  dist = mean(distance, na.rm = TRUE),
+  delay = mean(arr_delay, na.rm = TRUE))
+
+delay <- filter(delay, count > 20, dest != "HNL")
+
+
+ggplot(data = delay, mapping = aes(x = dist, y = delay)) +
+  geom_point(aes(size = count), alpha = 1/3) +
+  geom_smooth(se = FALSE)
+
+```
+
+There's another way to tackle the same problem with the pipe, `%>%`:
+
+```{r}
+delays <- flights %>% 
+  group_by(dest) %>% 
+  summarise(
+    count = n(),
+    dist = mean(distance, na.rm = TRUE),
+    delay = mean(arr_delay, na.rm = TRUE)) %>% 
+  filter(count > 20, dest != "HNL")
+```
+
+You may have wondered about the `na.rm` argument we used above. What happens if we don't set it?
+
+```{r}
+flights %>% 
+  group_by(year, month, day) %>% 
+  summarise(mean = mean(dep_delay))
+
+```
+
+We get a lot of missing values!\
+`na.rm` argument which removes the missing values prior to computation:\
+
+```{r}
+flights %>% 
+  group_by(year, month, day) %>% 
+  summarise (mean = mean(dep_delay, na.rm = TRUE))
+
+```
+
+In this case, where missing values represent cancelled flights, we could also tackle the problem by first removing the cancelled flights. We'll save this dataset so we can reuse it in the next few examples.
+
+```{r}
+not_cancelled <- flights %>% 
+  filter (!is.na(dep_delay), !is.na(arr_delay))
+
+not_cancelled %>% 
+  group_by(year, month, day) %>% 
+  summarise(mean = mean(dep_delay))
+
+```
+
+Counts
+
+```{r}
+delays <- not_cancelled %>% 
+  group_by(tailnum) %>% 
+  summarise(
+    delay = mean(arr_delay))
+
+ggplot(data = delays, mapping = aes(x = delay)) + 
+  geom_freqpoly(binwidth = 10)
+
+```
+
+```{r}
+delays <- not_cancelled %>% 
+  group_by(tailnum) %>% 
+  summarise(
+    delay = mean(arr_delay, na.rm = TRUE),
+    n = n())
+
+ggplot(data = delays, mapping = aes(x = n, y = delay)) + 
+  geom_point(alpha = 1/10)
+```
+
+```{r}
+delays %>% 
+  filter(n > 25) %>% 
+  ggplot(mapping = aes(x = n, y = delay)) + 
+  geom_point(alpha = 1/10)
+```
+
+Lahman Data
+
+```{r}
+
+```
+
+```{r}
+# Convert to a tibble so it prints nicely
+batting <- as_tibble(Lahman::Battin)
+```
+
+```{r}
+
+```
+
+``` {g)}
+
+batters <- batting %>% 
+  group_by(playerID) %>% 
+  summarise(
+    ba = sum(H, na.rm = TRUE) / sum(AB, na.rm = TRUE),
+    ab = sum(AB, na.rm = TRUE))
+
+batters %>% 
+  filter(ab > 100) %>% 
+  ggplot(mapping = aes(x = ab, y = ba)) +
+    geom_point() + 
+    geom_smooth(se = FALSE)
+```
+
+```{r}
+batters %>% 
+  arrange(desc(ba))
+```
+
+Useful summary functions
+
+```{r}
+not_cancelled %>% 
+  group_by(year, month, day) %>% 
+  summarise(avg_delay1 = mean(arr_delay),
+            avg_delay2 = mean(arr_delay[arr_delay > 0]) 
+    # the average positive delay
+
+
+  
+```
+
+Measures of spread: `sd(x)`, `IQR(x)`, `mad(x)`. The root mean squared deviation, or standard deviation `sd(x)`, is the standard measure of spread. The interquartile range `IQR(x)` and median absolute deviation `mad(x)` are robust equivalents that may be more useful if you have outliers.
+
+```{r}
+# Why is distance to some destinations more variable than to others?
+not_cancelled %>% 
+  group_by(dest) %>% 
+  summarise(distance_sd = sd(distance)) %>% 
+  arrange(desc(distance_sd))
+```
+
+Measures of rank: `min(x)`, `quantile(x, 0.25)`, `max(x)`. Quantiles are a generalisation of the median. For example, `quantile(x, 0.25)` will find a value of `x` that is greater than 25% of the values, and less than the remaining 75%
+
+```{r}
+not_cancelled %>% 
+  group_by(year, month, day) %>% 
+  summarise(
+    first = min(dep_time),
+    last = max(dep_time))
+```
+
+Measures of position: `first(x)`, `nth(x, 2)`, `last(x)`. These work similarly to `x[1]`, `x[2]`, and `x[length(x)]` but let you set a default value if that position does not exist (i.e. you're trying to get the 3rd element from a group that only has two elements). For example, we can find the first and last departure for each day:
+
+```{r}
+not_cancelled %>% 
+  group_by(year, month, day) %>% 
+  summarise(
+    first_dep = first(dep_time), 
+    last_dep = last(dep_time)
+  )
+```
+
+Filtering gives you all variables, with each observation in a separate row:
+
+```{r}
+not_cancelled %>% 
+  group_by(year, month, day) %>% 
+  mutate(r = min_rank(desc(dep_time))) %>% 
+  filter(r %in% range(r))
+```
+
+Counts: You've seen [`n()`](https://dplyr.tidyverse.org/reference/context.html), which takes no arguments, and returns the size of the current group. To count the number of non-missing values, use `sum(!is.na(x))`. To count the number of distinct (unique) values, use `n_distinct(x)`.
+
+```{r}
+# Which destinations have the most carriers?
+not_cancelled %>% 
+  group_by(dest) %>% 
+  summarise(carriers = n_distinct(carrier)) %>% 
+  arrange(desc(carriers))
+```
+
+Counts are so useful that dplyr provides a simple helper if all you want is a count:
+
+```{r}
+not_cancelled %>% 
+  count(dest)
+```
+
+You can optionally provide a weight variable. For example, you could use this to "count" (sum) the total number of miles a plane flew:
+
+```{r}
+not_cancelled %>% 
+  count(tailnum, wt = distance)
+```
+
+Counts and proportions of logical values: `sum(x > 10)`, `mean(y == 0)`. When used with numeric functions, `TRUE` is converted to 1 and `FALSE` to 0. This makes [`sum()`](https://rdrr.io/r/base/sum.html) and [`mean()`](https://rdrr.io/r/base/mean.html) very useful: `sum(x)` gives the number of `TRUE`s in `x`, and `mean(x)` gives the proportion.
+
+```{r}
+# How many flights left before 5am? (these usually indicate delayed
+# flights from the previous day)
+not_cancelled %>% 
+  group_by(year, month, day) %>% 
+  summarise(n_early = sum(dep_time < 500))
+```
+
+```{r}
+#What proportion of flights are delayed by more than an hour?
+not_cancelled %>% 
+  group_by(year, month, day) %>% 
+  summarise(hour_prop = mean(arr_delay > 60))
+```
+
+grouping by multiple variables
+
+When you group by multiple variables, each summary peels off one level of the grouping. That makes it easy to progressively roll up a dataset:
+
+\
+
+```{r}
+daily <- group_by(flights, year, month, day)
+(per_day   <- summarise(daily, flights = n()))
+
+(per_month <- summarise(per_day, flights = sum(flights)))
+
+(per_year  <- summarise(per_month, flights = sum(flights)))
+```
+
+Ungrouping
+
+If you need to remove grouping, and return to operations on ungrouped data, use [`ungroup()`](https://dplyr.tidyverse.org/reference/group_by.html).
+
+```{r}
+daily %>% 
+  ungroup() %>%             # no longer grouped by date
+  summarise(flights = n())  # all flights
+```
+
+Grouped mutates (and filters)
+
+Grouping is most useful in conjunction with [`summarise()`](https://dplyr.tidyverse.org/reference/summarise.html), but you can also do convenient operations with [`mutate()`](https://dplyr.tidyverse.org/reference/mutate.html) and [`filter()`](https://dplyr.tidyverse.org/reference/filter.html):
+
+-   Find the worst members of each group:
+
+```{r}
+flights_sml %>% 
+  group_by(year, month, day) %>%
+  filter(rank(desc(arr_delay)) < 10)
+```
+
+Find all groups bigger than a threshold:
+
+\
+
+```{r}
+popular_dests <- flights %>% 
+  group_by(dest) %>% 
+  filter(n() > 365)
+popular_dests
+
+```
+
+Standardise to compute per group metrics:
+
+```{r}
+popular_dests %>% 
+  filter(arr_delay > 0) %>% 
+  mutate(prop_delay = arr_delay / sum(arr_delay)) %>% 
+  select(year:day, dest, arr_delay, prop_delay)
+```

@@ -1,0 +1,77 @@
+---
+title: "data_transformation"
+author: "Moh_Moh_Kyi"
+date: "2023-01-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+#Prerequisites
+```{r}
+library(nycflights13)
+library(tidyverse)
+```
+nycflights13
+```{r}
+flights
+```
+the tibble. You’ll learn what makes them different from regular data frames.
+
+You might also have noticed the row of three (or four) letter abbreviations under the column names. These describe the type of each variable:
+
+int stands for integers.
+dbl stands for doubles, or real numbers.
+chr stands for character vectors, or strings.
+dttm stands for date-times (a date + a time).
+lgl stands for logical, vectors that contain only TRUE or FALSE.
+fctr stands for factors, which R uses to represent categorical variables with fixed possible values.
+date stands for dates
+
+#dplyr basics
+
+Pick observations by their values (filter()).
+Reorder the rows (arrange()).
+Pick variables by their names (select()).
+Create new variables with functions of existing variables (mutate()).
+Collapse many values down to a single summary (summarise())
+These can all be used in conjunction with group_by()
+
+#Filter rows with filter()
+```{r}
+filter(flights, month == 1, day == 1)
+```
+```{r}
+jan1 <- filter(flights, month == 1, day == 1)
+```
+```{r}
+(dec25 <- filter(flights, month == 12, day == 25))
+```
+#Logical operators
+ Boolean operators yourself: & is “and”, | is “or”, and ! is “not”.
+
+
+
+
